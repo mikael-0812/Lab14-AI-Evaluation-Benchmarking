@@ -1,50 +1,26 @@
 # Báo cáo Cá nhân (Reflection)
 
-**Họ và tên:** Nguyễn Khánh Huyền  
+**Họ và tên:** Nguyễn Khánh Huyền - 2A202600171  
 **Vai trò:** Evaluation & Benchmarking  
-**Nhóm:** Team Evaluation Factory  
+**Phạm vi công việc chính:** `engine/retrieval_eval.py`, `engine/llm_judge.py`, `main.py`
 
 ## 1. Engineering Contribution
-Trong nhóm, mình phụ trách chính phần **đánh giá hệ thống**. Cụ thể, mình viết code để chạy benchmark cho hai phiên bản agent là **V1** và **V2**, sau đó tổng hợp kết quả và so sánh giữa hai phiên bản. Phần mình làm bao gồm chạy toàn bộ test cases, thu thập các chỉ số đánh giá, xuất file báo cáo và hỗ trợ nhóm nhìn rõ agent đang tốt lên hay còn yếu ở đâu.
+Phần em phụ trách tập trung vào 3 file chính của pipeline đánh giá. Trong `engine/retrieval_eval.py`, em hoàn thiện các metric retrieval như Hit Rate, Retrieval Accuracy, MRR và NDCG để hệ thống có thể đo được chất lượng truy xuất tài liệu trước khi đánh giá câu trả lời. Đây là phần quan trọng vì nếu retrieval sai thì answer quality thường cũng giảm theo.
 
-Ngoài việc chạy benchmark, mình cũng tham gia xây dựng cơ chế **multi-judge** để chấm chất lượng câu trả lời của agent. Phần này giúp hệ thống không chỉ dựa vào một kết quả đánh giá duy nhất mà có thể xem mức độ đồng thuận giữa nhiều judge, từ đó phát hiện rõ hơn các câu trả lời đúng, gần đúng hoặc có dấu hiệu hallucination.
+Trong `engine/llm_judge.py`, em xây dựng phần chấm điểm tự động bằng LLM theo hướng multi-judge. Hệ thống dùng 2 judge độc lập để chấm theo các tiêu chí như accuracy, tone, fairness, consistency, đồng thời theo dõi thêm hallucination và bias. Em cũng thêm logic tính agreement rate và xử lý xung đột khi 2 judge chênh điểm quá lớn, để kết quả đánh giá ổn định hơn so với chỉ dùng một judge đơn lẻ.
 
-Bên cạnh đó, mình còn phụ trách tổng hợp kết quả benchmark thành các file báo cáo như `summary.json`, `benchmark_results.json` và phần `failure_analysis.md` để phục vụ cho việc kiểm tra và chấm lab. Nhờ đó, pipeline đánh giá của nhóm có thể chạy hoàn chỉnh từ bước benchmark đến bước phân tích kết quả.
+Trong `main.py`, em phụ trách orchestration cho benchmark V1 vs V2: load dataset, chạy benchmark cho từng version, tổng hợp summary, so sánh regression và xuất các file report như `summary.json`, `benchmark_results.json`, `judge_audit.jsonl`. Em cũng thêm release gate để hệ thống có thể đưa ra quyết định pass hay block dựa trên ngưỡng chất lượng đã đặt.
 
 ## 2. Technical Depth
-Qua phần việc của mình, mình hiểu rõ hơn cách đánh giá một hệ thống RAG hoặc QA agent không chỉ bằng một chỉ số duy nhất, mà cần nhìn trên nhiều khía cạnh khác nhau. Mình làm việc trực tiếp với các chỉ số như:
+Qua phần việc của mình, em hiểu rõ hơn các khái niệm đánh giá cốt lõi. MRR là chỉ số đo vị trí của tài liệu đúng đầu tiên trong danh sách retrieve, nên rất hữu ích để biết hệ thống có đưa đúng tài liệu lên sớm hay không. Nếu tài liệu đúng đứng đầu thì MRR cao, còn nếu đúng nhưng nằm sâu phía dưới thì MRR thấp dù Hit Rate vẫn có thể bằng 1.
 
-- **Pass Rate** để theo dõi tỉ lệ test case agent vượt qua
-- **Judge Score** để đánh giá chất lượng câu trả lời cuối cùng
-- **Hit Rate, Retrieval Accuracy, MRR** để đo chất lượng retrieval
-- **Agreement Rate** để xem các judge có đồng thuận với nhau không
-- **Hallucination Rate** để phát hiện các câu trả lời có thêm thông tin không được hỗ trợ bởi tài liệu
+Về multi-judge, hệ thống hiện đang dùng agreement rate để đo mức độ đồng thuận giữa hai judge. So với agreement rate, Cohen’s Kappa là một thước đo chặt hơn vì có tính đến xác suất đồng thuận do ngẫu nhiên. Em hiểu rằng nếu muốn mở rộng hệ thống theo hướng nghiên cứu hoặc production nghiêm túc hơn, Cohen’s Kappa sẽ phù hợp hơn cho việc đánh giá độ tin cậy của judge.
 
-Trong quá trình làm, mình cũng hiểu rõ hơn sự khác nhau giữa lỗi đến từ **retrieval** và lỗi đến từ **answer generation**. Có những case agent trả lời sai vì không retrieve được đúng context, nhưng cũng có những case retrieval đúng mà agent vẫn trả lời dài dòng, thêm suy diễn hoặc không bám sát expected answer. Điều này giúp mình nhìn bài toán đánh giá agent một cách toàn diện hơn.
-
-Ngoài ra, khi làm phần multi-judge, mình cũng hiểu thêm cách sử dụng nhiều judge để tăng độ tin cậy trong đánh giá. Những trường hợp judge không đồng thuận thường là các câu gần đúng hoặc câu có thêm chi tiết ngoài tài liệu, và đây chính là những case cần manual review hoặc cần tối ưu prompt sinh đáp án.
+Em cũng hiểu Position Bias là hiện tượng judge bị ảnh hưởng bởi thứ tự trình bày phương án hoặc câu trả lời. Vì vậy trong `engine/llm_judge.py` em có phần kiểm tra position bias để hỗ trợ phát hiện trường hợp model chấm lệch chỉ vì đổi thứ tự input. Ngoài ra, khi làm multi-judge em cũng thấy rõ trade-off giữa chi phí và chất lượng: dùng 2 model giúp tăng độ tin cậy, phát hiện hallucination tốt hơn, nhưng đồng thời tăng token usage và cost cho mỗi benchmark run.
 
 ## 3. Problem Solving
-Một vấn đề lớn mình gặp là khi benchmark sinh ra rất nhiều kết quả, nếu chỉ nhìn các số tổng hợp thì rất khó biết agent thực sự sai ở đâu. Ban đầu có thể thấy pass rate thấp hoặc hallucination rate cao, nhưng chưa thể kết luận nguyên nhân là do retrieval yếu, do prompt sinh đáp án chưa tốt hay do agent trả lời quá dài.
+Khó khăn lớn nhất em gặp là làm sao để pipeline đánh giá vừa chạy được end-to-end, vừa phản ánh đúng chất lượng của từng version agent. Trong quá trình làm, có lúc benchmark chạy được nhưng report chưa đúng format để checker đọc, hoặc summary chưa chứa đủ key cần thiết. Em xử lý bằng cách rà lại luồng dữ liệu từ lúc chạy benchmark đến lúc ghi report để đảm bảo file đầu ra đồng nhất và có thể dùng lại cho cả kiểm tra kỹ thuật lẫn chấm lab.
 
-Để xử lý việc đó, mình đi theo hướng đọc trực tiếp từng case trong `benchmark_results.json`, đối chiếu giữa:
-- câu hỏi
-- câu trả lời của agent
-- đáp án mong đợi
-- retrieval metrics
-- judge result
+Một vấn đề khác là kết quả judge giữa hai model có thể chênh lệch khá mạnh ở các case gần đúng hoặc có thêm chi tiết ngoài expected answer. Để giải quyết, em không lấy trực tiếp một judge làm kết quả cuối, mà thêm conflict resolution theo hướng bảo thủ: nếu lệch nhỏ thì lấy trung bình, nếu lệch lớn thì ưu tiên điểm thấp hơn. Cách này giúp pipeline tránh bị quá lạc quan với những câu trả lời nghe hợp lý nhưng chưa thật sự bám ground truth.
 
-Từ đó mình phân loại lỗi thành các nhóm dễ hiểu hơn như:
-- không retrieve được đúng context
-- agent fallback sai kiểu “tài liệu không có thông tin”
-- agent trả lời đúng ý chính nhưng thêm chi tiết ngoài tài liệu
-- agent trả lời quá dài thay vì trả lời đúng fact cần hỏi
-
-Sau khi phân nhóm lỗi, mình viết phần **failure analysis** để mô tả rõ các lỗi tiêu biểu, chọn các case xấu nhất để phân tích theo hướng nguyên nhân gốc, rồi đề xuất action plan cụ thể cho nhóm. Nhờ phần này, kết quả benchmark không chỉ dừng ở việc “đạt hay không đạt” mà còn trở thành căn cứ để cải thiện hệ thống ở vòng sau.
-
-## 4. Kết quả và bài học rút ra
-Từ phần mình thực hiện, nhóm có thể so sánh trực tiếp giữa V1 và V2 thay vì chỉ nhìn cảm tính. Qua benchmark, có thể thấy V2 cải thiện rõ rệt hơn V1 ở nhiều mặt như pass rate, retrieval quality và hallucination rate. Điều đó cho thấy việc xây dựng một pipeline đánh giá rõ ràng là rất cần thiết, vì nó giúp nhóm biết được thay đổi nào thực sự có ích.
-
-Cá nhân mình học được rằng đánh giá agent không chỉ là chạy test rồi lấy điểm trung bình, mà quan trọng hơn là phải đọc được bản chất của từng lỗi. Một hệ thống có thể trả lời nghe rất hợp lý nhưng vẫn sai vì không bám tài liệu; ngược lại có những câu gần đúng nhưng bị phạt vì thiếu chi tiết bắt buộc. Vì vậy, phần evaluation cần vừa có chỉ số định lượng, vừa có phân tích định tính.
-
-Qua bài lab này, mình hiểu rõ hơn vai trò của evaluation trong một pipeline AI: không chỉ để chấm điểm mô hình, mà còn để định hướng cải tiến hệ thống một cách có cơ sở.
+Cuối cùng, em cũng phải xử lý bài toán liên kết giữa retrieval quality và answer quality. Trong thực tế có case retrieval đúng nhưng answer vẫn sai do model thêm suy diễn, và cũng có case answer nghe hợp lý nhưng retrieval hoàn toàn không chính xác. Vì vậy em tách riêng phần retrieval metrics và LLM judge, rồi ghép chúng lại ở `main.py` thành benchmark summary hoàn chỉnh. Nhờ vậy nhóm có thể nhìn rõ lỗi nằm ở truy xuất, ở sinh câu trả lời, hay ở chính logic đánh giá.

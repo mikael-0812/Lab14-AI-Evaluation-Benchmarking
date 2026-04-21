@@ -51,7 +51,7 @@
         "manual_review_rate": 0.9,
         "metadata": {
           "version": "V1",
-          "agent_module": "agent.main_agent2",
+          "agent_module": "agent.main_agent",
           "timestamp": "2026-04-21 16:52:24",
           "total_cases": 70,
           "total": 70
@@ -83,7 +83,7 @@
         "manual_review_rate": 0.27,
         "metadata": {
           "version": "V2",
-          "agent_module": "agent.main_agent2",
+          "agent_module": "agent.main_agent",
           "timestamp": "2026-04-21 16:54:58",
           "total_cases": 70,
           "total": 70

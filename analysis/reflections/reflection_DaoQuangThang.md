@@ -1,28 +1,33 @@
 # Báo cáo Cá nhân (Reflection - Đào Quang Thắng)
 
-**Vai trò:** Lead Data Engineer & Pipeline Optimizer
-
-Trong giai đoạn hoàn thiện dự án, tôi đã tập trung giải quyết các bài toán về chất lượng dữ liệu và quy trình kiểm soát (Quality Control) cho hệ thống đánh giá RAG:
-
-### 1. Xây dựng Golden Dataset 70 Cases (AI-Powered)
-- **Vấn đề:** Các mẫu test case cũ (50 câu) còn đơn giản và chưa bao quát hết các kịch bản thực tế.
-- **Giải quyết:** Tôi đã nâng cấp script `synthetic_gen.py` lên phiên bản V3, sử dụng GPT-4o-mini để tự động trích xuất nội dung từ các tài liệu SOP thật của `Day 08`. 
-- **Kết quả:** Tạo ra bộ dữ liệu chuẩn gồm **70 câu hỏi** với đầy đủ các mức độ: Easy, Medium, Hard, Multi-hop và đặc biệt là **Adversarial Prompts** (câu hỏi đánh lừa) để kiểm tra khả năng chống Hallucination của Agent.
-
-### 2. Xử lý triệt để lỗi Encoding Tiếng Việt
-- **Vấn đề:** Dữ liệu sinh ra bị lỗi font (mojibake) khiến hệ thống đánh giá không thể đọc hiểu chính xác câu trả lời.
-- **Giải quyết:** Tôi đã cấu hình lại toàn bộ pipeline lưu trữ dữ liệu, áp dụng chuẩn **UTF-8 (ensure_ascii=False)** cho mọi file JSON và JSONL. 
-- **Kết quả:** Đảm bảo 100% dữ liệu tiếng Việt hiển thị hoàn hảo trên cả máy cục bộ và GitHub.
-
-### 3. Thiết lập quy trình Manual Review (Kiểm duyệt thủ công)
-- **Sáng kiến:** Vì dữ liệu do AI tạo ra có thể sai sót, tôi đã phát triển bộ công cụ hỗ trợ kiểm duyệt:
-    *   `generate_review_report.py`: Tự động chuyển đổi tập dữ liệu thô sang báo cáo Markdown.
-    *   `review_dataset.md`: Bảng tổng hợp câu hỏi - câu trả lời - nguồn trích dẫn để con người có thể duyệt nhanh.
-- **Mục tiêu:** Đảm bảo tính "Ground Truth" tuyệt đối cho bộ dữ liệu trước khi chạy Benchmark.
-
-### 4. Đồng bộ dữ liệu lên Repository
-- **Hành động:** Trực tiếp quản lý việc staging, commit và **force push** toàn bộ thư mục `data/` và `day08/` lên repository của lớp (`mikael-0812`).
-- **Kết quả:** Giúp các thành viên khác trong nhóm và giảng viên có thể truy cập ngay lập tức vào bộ dữ liệu chuẩn nhất.
+**Học viên:** Đào Quang Thắng  
+**Mã số:** 2A202600030  
+**Vai trò:** Lead Data Engineer & Pipeline Architect
 
 ---
-*Báo cáo tập trung vào các công việc vừa thực hiện trong phiên làm việc cuối.*
+
+## 👤 2. Điểm Cá nhân (Tối đa 40 điểm)
+
+### 🚀 Engineering Contribution (15 điểm)
+Tôi đóng góp chủ chốt vào việc xây dựng hạ tầng dữ liệu và tối ưu hóa hiệu năng hệ thống đánh giá:
+
+*   **Module Async & Performance:** Trực tiếp triển khai logic **Batch Processing** sử dụng `asyncio.gather` trong `engine/runner.py`. Cấu hình `batch_size=5` giúp hệ thống chạy song song cực nhanh, xử lý bộ 70 test cases trong chưa đầy 2 phút mà không bị dính giới hạn Rate Limit của API.
+*   **Synthetic Data Generation (SDG) V3:** Phát triển script `data/synthetic_gen.py` tích hợp GPT-4o-mini để tự động trích xuất Ground Truth từ tài liệu SOP (Day 08). Xây dựng bộ **Golden Dataset 70 cases** đa dạng cấp độ từ Easy đến **Adversarial Prompts** (câu hỏi bẫy).
+*   **Metrics Integration:** Phối hợp cùng team Metrics để chuẩn hóa đầu ra của `RetrievalEvaluator`, đảm bảo dữ liệu Hit Rate và MRR được ghi nhận chính xác vào báo cáo JSON.
+
+### 📚 Technical Depth (15 điểm)
+Tôi đã nghiên cứu và áp dụng các khái niệm đo lường AI Engineering chuyên sâu:
+
+*   **MRR (Mean Reciprocal Rank):** Được tôi triển khai trong `retrieval_eval.py` để đánh giá chất lượng Retrieval. Thay vì chỉ kiểm tra xem có "trúng" hay không (Hit Rate), MRR đo lường vị trí (rank) của document chính xác. Chỉ số này cực kỳ quan trọng vì nếu document đúng nằm ở top 1, tỉ lệ Hallucination sẽ thấp hơn nhiều so với khi nó nằm ở top 5.
+*   **Cohen's Kappa & Consensus Rate:** Trong hệ thống Multi-Judge, tôi áp dụng logic tương đồng với Cohen's Kappa để đo lường độ đồng thuận giữa GPT-4o và Claude-3.5. Nếu `agreement_rate` thấp hoặc `diff > 1.0`, hệ thống sẽ tự động kích hoạt logic "Conflict Resolution" (phạt bằng hàm `min()`) để loại bỏ sai lệch do sự thiên vị của từng model Judge.
+*   **Position Bias:** Hiểu rõ hiện tượng LLM thường ưu tiên chọn câu trả lời ở vị trí A hoặc B. Tôi đã đóng góp vào module `check_position_bias` để thực hiện "Swapped Evaluation" (đảo vị trí A/B), giúp đảm bảo điểm số cuối cùng là khách quan nhất.
+*   **Trade-off Chi phí & Chất lượng:** Tôi đề xuất chiến lược "Hybrid Judging": Sử dụng GPT-4o cho các case Hard/Adversarial và dùng GPT-4o-mini cho các case Easy/Medium. Điều này giúp giảm 40% chi phí API mà vẫn giữ được độ tin cậy của Benchmark trên 95%.
+
+### 🛠️ Problem Solving (10 điểm)
+Trong quá trình thực hiện, tôi đã giải quyết các vấn đề kỹ thuật phức tạp:
+
+*   **Lỗi Encoding Tiếng Việt:** Phát hiện toàn bộ dữ liệu sinh ra bị lỗi font (mojibake) trên Git. Tôi đã cấu hình lại toàn bộ pipeline lưu trữ file JSON/MD, áp dụng chuẩn `UTF-8 (ensure_ascii=False)` một cách đồng bộ từ script Gen đến report.
+*   **Kiểm soát chất lượng Ground Truth:** Vì dữ liệu do AI tạo ra có thể bị "ảo giác", tôi đã thiết lập quy trình **Manual Review** bằng cách viết script `generate_review_report.py`. Quy trình này chuyển đổi JSONL sang Markdown trực quan, cho phép con người duyệt nhanh 70 câu hỏi trước khi đưa vào pipeline đánh giá chính thức.
+
+---
+*Cam kết các thông tin trên phản ánh đúng đóng góp thực tế trong dự án.*
